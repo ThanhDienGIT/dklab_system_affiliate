@@ -1,0 +1,39 @@
+{
+  "format": "eleonore.products.v1",
+  "products": [
+    {
+      "itemId": "SP001",
+      "merchant": "shopee",
+      "name": "Đầm babydoll nơ ngực",
+      "style": "Y2K",
+      "category": "Quần áo",
+      "type": "Đầm babydoll",
+      "price": 329000,
+      "originalPrice": 399000,
+      "colors": ["hồng", "trắng"],
+      "sizes": ["S", "M", "L"],
+      "material": "Voan",
+      "images": ["https://example.com/anh1.jpg", "https://example.com/anh2.jpg"],
+      "description": "Đầm voan nơ ngực dáng babydoll.",
+      "affiliateUrl": "https://s.shopee.vn/xxxx",
+      "productUrl": "https://shopee.vn/product/1/2",
+      "rating": 4.9, "reviewCount": 1200, "sold": 5400,
+      "detail": {
+        "stock": 320,
+        "sourcePath": ["Shopee", "Thời Trang Nữ", "Váy & Đầm"],
+        "variants": [
+          { "name": "Màu sắc", "options": [{ "name": "Hồng" }, { "name": "Trắng" }] },
+          { "name": "Size", "options": [{ "name": "S" }, { "name": "M" }, { "name": "L" }] }
+        ],
+        "attributes": [{ "label": "Chất liệu", "value": "Voan" }, { "label": "Kiểu dáng", "value": "Babydoll" }],
+        "shipping": { "from": "TP. Hồ Chí Minh", "fee": "Miễn phí vận chuyển" },
+        "shop": { "name": "Shop Mẫu", "ratingCount": 15000, "responseRate": 98 },
+        "ratingBreakdown": { "star5": 1000, "star4": 120, "star3": 40, "star2": 20, "star1": 20, "withComment": 600, "withMedia": 300 }
+      },
+      "reviews": [
+        { "author": "n***a", "rating": 5, "content": "Đầm đẹp, đúng mô tả", "variant": "Hồng, M", "reviewedAt": "2025-03-01 20:30", "media": [], "sellerReply": "Cảm ơn bạn!", "likes": 3 }
+      ],
+      "raw": { "ghiChu": "Toàn bộ JSON gốc từ công cụ cào, lưu vào cột raw_data để so sánh" }
+    }
+  ]
+}

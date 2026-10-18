@@ -1,0 +1,131 @@
+@import "tailwindcss";
+@import "@fontsource-variable/montserrat";
+@import "@fontsource-variable/playfair-display";
+@import "lenis/dist/lenis.css";
+
+/* ============ Design tokens (Éleonore: ivory · champagne gold · warm black) ============ */
+@theme {
+  --font-sans: "Montserrat Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display Variable", "Times New Roman", serif;
+
+  --color-ivory: #faf7f2;
+  --color-paper: #ffffff;
+  --color-sand: #f1ebe0;
+  --color-line: #e4dccd;
+  --color-ink: #1b1613;
+  --color-ink-soft: #4a423b;
+  --color-muted: #6f655b;
+  --color-gold: #a8834a;
+  --color-gold-deep: #7d5f2e;
+  --color-gold-soft: #d9c39a;
+  --color-rose: #b5495b;
+  --color-ok: #2f6b4a;
+
+  /* Thang z-index: moi lop popup co 1 tang rieng, khong dung so tuy y trong component */
+  --z-base: 1;
+  --z-sticky: 40;
+  --z-mega: 45;
+  --z-widget: 50;
+  --z-drawer-overlay: 60;
+  --z-drawer: 61;
+  --z-modal-overlay: 70;
+  --z-modal: 71;
+  --z-toast: 90;
+
+  --ease-lux: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-fade-up: fade-up 0.7s var(--ease-lux) both;
+  --animate-marquee: marquee 40s linear infinite;
+}
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+:root { color-scheme: light; --header-h: 64px; --announce-h: 36px; }
+@media (min-width: 1024px) { :root { --header-h: 76px; } }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--color-ivory); color: var(--color-ink); font-family: var(--font-sans);
+  font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+h1, h2, h3, .font-display { font-variant-numeric: lining-nums; font-family: var(--font-serif); font-weight: 500; letter-spacing: 0; line-height: 1.28; font-optical-sizing: auto; }
+::selection { background: var(--color-gold-soft); color: var(--color-ink); }
+img { max-width: 100%; }
+
+/* Focus nhin thay ro (a11y) */
+:focus-visible { outline: 2px solid var(--color-gold-deep); outline-offset: 3px; border-radius: 2px; }
+
+/* Khong de dau cach/cuon ngang tren mobile */
+.container-x { width: 100%; max-width: 1440px; margin-inline: auto; padding-inline: 16px; }
+@media (min-width: 768px) { .container-x { padding-inline: 32px; } }
+@media (min-width: 1280px) { .container-x { padding-inline: 48px; } }
+
+/* Component classes nam trong @layer components de utility Tailwind (bg-transparent, text-ivory...) ghi de duoc */
+@layer components {
+.eyebrow { font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--color-gold-deep); font-weight: 600; }
+.section-title { font-size: clamp(28px, 4vw, 44px); text-align: center; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 28px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; border: 1px solid var(--color-ink);
+  transition: background .25s var(--ease-lux), color .25s var(--ease-lux), border-color .25s; cursor: pointer; }
+.btn-solid { background: var(--color-ink); color: var(--color-ivory); }
+.btn-solid:hover { background: var(--color-gold-deep); border-color: var(--color-gold-deep); }
+.btn-ghost { background: transparent; color: var(--color-ink); }
+.btn-ghost:hover { background: var(--color-ink); color: var(--color-ivory); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.field { width: 100%; min-height: 44px; padding: 10px 14px; background: var(--color-paper); border: 1px solid var(--color-line);
+  font-size: 15px; color: var(--color-ink); transition: border-color .2s; }
+.field:focus { border-color: var(--color-gold-deep); outline: none; box-shadow: 0 0 0 3px rgb(168 131 74 / .18); }
+.field[aria-invalid="true"] { border-color: var(--color-rose); }
+.label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--color-ink-soft); margin-bottom: 6px; }
+
+.link-u { background-image: linear-gradient(currentColor, currentColor); background-size: 0 1px; background-repeat: no-repeat;
+  background-position: 0 100%; transition: background-size .35s var(--ease-lux); }
+.link-u:hover, .link-u:focus-visible { background-size: 100% 1px; }
+
+}
+
+.no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
+
+
+/* ---------- Hieu nang & cam giac tai ---------- */
+/* Skeleton shimmer: chi animate background-position (GPU re, khong reflow) */
+.skeleton { background: linear-gradient(90deg, var(--color-sand) 0%, #f8f3ea 45%, var(--color-sand) 90%); background-size: 220% 100%; animation: shimmer 1.3s ease-in-out infinite; }
+@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+/* Card hien dan bang CSS thuan: chay ngay khi HTML ve ra, KHONG doi JS hydrate -> anh LCP khong bi an.
+   --i = thu tu card; 8 card dau stagger, phan con lai hien theo cuon (scroll-driven) neu trinh duyet ho tro. */
+@keyframes card-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+.card-in { animation: card-in .55s var(--ease-lux) both; animation-delay: calc(min(var(--i, 0), 8) * 45ms); }
+@supports (animation-timeline: view()) {
+  .card-in[data-below] { animation: card-in linear both; animation-timeline: view(); animation-range: entry 0% entry 40%; }
+}
+
+/* Bo qua render phan ngoai man hinh (danh gia, lien quan, footer) cho toi khi cuon gan toi */
+.cv-auto { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+
+/* Lenis: tat smooth CSS khi Lenis dang chay de khong "kep" 2 lop smooth */
+html.lenis.lenis-smooth { scroll-behavior: auto !important; }
+
+/* Ton trong nguoi dung tat hieu ung */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .card-in, .skeleton { animation: none !important; opacity: 1 !important; transform: none !important; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* Blog */
+.prose-blog { font-size: 1.0625rem; line-height: 1.8; }
+.prose-blog h2 { font-family: var(--font-display, inherit); font-size: 1.75rem; line-height: 1.25; margin: 2.25rem 0 0.75rem; }
+.prose-blog h3 { font-size: 1.25rem; font-weight: 600; margin: 1.75rem 0 0.5rem; }
+.prose-blog p { margin: 0 0 1.1rem; }
+.prose-blog ul, .prose-blog ol { margin: 0 0 1.1rem 1.25rem; }
+.prose-blog ul { list-style: disc; } .prose-blog ol { list-style: decimal; }
+.prose-blog li { margin: 0.25rem 0; }
+.prose-blog a { text-decoration: underline; text-underline-offset: 3px; }
+.prose-blog a:hover { opacity: 0.7; }
+.prose-blog table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+.prose-blog th, .prose-blog td { border: 1px solid var(--color-line, #ddd); padding: 0.5rem 0.75rem; text-align: left; }
+.prose-blog blockquote { border-left: 3px solid var(--color-line, #ddd); padding-left: 1rem; margin: 1rem 0; font-style: italic; }
