@@ -18,6 +18,7 @@ import {
 import { AuthService } from "./services/auth.service";
 import { CatalogService, type CacheWrap } from "./services/catalog.service";
 import { ExportService, ImportService } from "./services/import.service";
+import { SEED_CATEGORIES } from "./seed-data/taxonomy";
 import { ProductAdminService } from "./services/product-admin.service";
 import { ProfileService } from "./services/profile.service";
 import { RecommendService } from "./services/recommend.service";
@@ -60,7 +61,21 @@ function build() {
     search: new SearchService(products, misc, catalog.taxonomy, aiConfig),
     recommend: new RecommendService(products, users, catalog.taxonomy),
     tracking: new TrackingService(products),
-    importer: new ImportService(productAdmin, catalog.taxonomy),
+    // import doc danh muc truc tiep (khong qua cache) + tu tao the loai con thieu tu bo mau ("Quà tặng", "Khác"...)
+    importer: new ImportService(productAdmin, () => taxonomy.getAll(false), async (slug) => {
+      const seed = SEED_CATEGORIES.find((c) => c.slug === slug);
+      const all = await taxonomy.getAll(true);
+      let cat = all.categories.find((c) => c.slug === slug);
+      if (cat && !cat.isActive) { await taxonomy.saveCategory(cat.id, { ...cat, isActive: true }); cat = { ...cat, isActive: true }; }
+      if (cat) return cat;
+      if (!seed) return null;
+      const v = { name: seed.name, slug: seed.slug, aliases: seed.aliases, sortOrder: all.categories.length, isActive: true };
+      const id = await taxonomy.saveCategory(null, v);
+      for (const [i, ty] of seed.types.entries()) {
+        await taxonomy.saveType(null, { categoryId: id, name: ty.name, slug: ty.slug, aliases: ty.aliases, sortOrder: i, isActive: true }).catch(() => undefined);
+      }
+      return { id, ...v };
+    }),
     exporter: new ExportService(products),
   };
 }

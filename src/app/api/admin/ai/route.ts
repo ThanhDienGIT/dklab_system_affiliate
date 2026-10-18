@@ -9,6 +9,7 @@ import { AppError } from "@/server/domain/errors";
 const model = z.string().trim().regex(MODEL_ID_RE, "Tên model không hợp lệ");
 const body = z.object({
   apiKey: z.union([z.string().trim().max(300), z.null()]).optional(), // "" / undefined = giu nguyen, null = xoa key trong DB
+  skipCheck: z.boolean().optional(), // luu key khi khong goi duoc Gemini (mang chan...)
   defaultModel: model.nullable(),
   features: z.record(z.string(), z.object({ model: model.or(z.literal("")), enabled: z.boolean() })),
 });
@@ -38,11 +39,11 @@ export const PUT = api(async (req: Request) => {
   const ai = getContainer().aiConfig;
   const check = await ai.save({
     apiKey: b.apiKey === undefined || b.apiKey === "" ? undefined : b.apiKey,
-    defaultModel: b.defaultModel, features, actorId: u.id,
+    defaultModel: b.defaultModel, features, actorId: u.id, skipCheck: b.skipCheck === true,
   });
   await getContainer().misc.audit({
     actorId: u.id, action: "ai.config.save", entity: "ai", entityId: "gemini",
-    meta: { keyChanged: b.apiKey !== undefined && b.apiKey !== "", defaultModel: b.defaultModel, features },
+    meta: { skipCheck: b.skipCheck === true, keyChanged: b.apiKey !== undefined && b.apiKey !== "", defaultModel: b.defaultModel, features },
   });
   return json({ ok: true, check, current: await ai.current() });
 });

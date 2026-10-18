@@ -32,8 +32,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const [settings, user] = await Promise.all([getContainer().catalog.settings(), currentUser()]);
   const session = user ? { id: user.id, role: user.role, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl } : null;
   return (
-    <html lang="vi" data-scroll-behavior="smooth">
-      <body>
+    <html lang="vi" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Providers user={session}>
           <Experience>
           <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:bg-ink focus:px-4 focus:py-2 focus:text-ivory" style={{ zIndex: "var(--z-toast)" }}>Bỏ qua tới nội dung</a>

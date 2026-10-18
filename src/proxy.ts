@@ -45,11 +45,16 @@ export async function proxy(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith("/api/")) return NextResponse.next(); // phan quyen API xu ly o tung route
   if (req.method !== "GET") return NextResponse.next();
   const { pathname, search } = req.nextUrl;
-  const isDocument = (req.headers.get("accept") ?? "").includes("text/html");
+  // Trang that (F5) VA dieu huong mem cua Next (RSC; Next xoa header "rsc" khi vao proxy nen khong phan biet duoc,
+  // accept chi la */*): ca hai deu phai duoc gia han phien im lang, neu khong access token het han (15 phut)
+  // se day nguoi dung ve /dang-nhap khi bam chuyen trang. Tai nguyen tinh da bi matcher loai tru (co dau cham).
+  const isDocument = (req.headers.get("accept") ?? "").includes("text/html") || req.headers.get("sec-fetch-dest") === "document";
   const purpose = req.headers.get("next-router-prefetch") || req.headers.get("purpose") === "prefetch";
-  if (!isDocument || purpose) return NextResponse.next();
+  if (purpose) return NextResponse.next();
 
   const needAuth = pathname.startsWith("/tai-khoan") || pathname.startsWith("/admin");
+  // dieu huong mem (RSC) toi trang cong khai: khong can gia han (tranh xoay token hang loat khi prefetch)
+  if (!isDocument && !needAuth) return NextResponse.next();
   const hasRefresh = req.cookies.has(COOKIE_REFRESH);
   const access = await verifyAccessToken(req.cookies.get(COOKIE_ACCESS)?.value);
   if (access.ok) return NextResponse.next();

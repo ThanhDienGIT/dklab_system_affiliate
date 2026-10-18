@@ -18,7 +18,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { href: "/admin/san-pham", label: "Sản phẩm" },
     { href: "/admin/blog", label: "Blog" },
     { href: "/admin/phan-loai", label: "Phân loại" },
-    { href: "/admin/nhap-csv", label: "Nhập / xuất" },
+    { href: "/admin/nhap-shopee", label: "Nhập Shopee" },
+    { href: "/admin/nhap-du-lieu", label: "Nhập dữ liệu" },
     ...(can(user.role, "user.manage") ? [{ href: "/admin/nguoi-dung", label: "Người dùng" }] : []),
     ...(can(user.role, "settings.write") ? [{ href: "/admin/ai", label: "Cấu hình AI" }, { href: "/admin/cai-dat", label: "Cài đặt" }] : []),
   ];

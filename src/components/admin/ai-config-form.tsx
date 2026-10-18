@@ -20,30 +20,34 @@ export function AiConfigForm() {
   const [def, setDef] = useState("");
   const [feat, setFeat] = useState<Record<string, { model: string; enabled: boolean }>>({});
   const [tests, setTests] = useState<Record<string, string>>({});
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const apply = (p: Payload) => {
     setData(p); setDef(p.current.defaultModel ?? ""); setFeat(p.current.features);
   };
   // Luon kiem tra key + lay danh sach model moi khi vao trang
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setLoadErr(null);
     try { apply(await apiFetch<Payload>("/api/admin/ai")); }
-    catch (e) { toast(e instanceof Error ? e.message : "Không tải được cấu hình", "err"); }
+    catch (e) { const m = e instanceof Error ? e.message : "Không tải được cấu hình"; setLoadErr(m); toast(m, "err"); }
     setLoading(false);
   }, [toast]);
   useEffect(() => { void load(); }, [load]);
 
-  async function save(removeKey = false) {
+  async function save(removeKey = false, skipCheck = false) {
     setBusy(true);
     try {
       const r = await apiFetch<{ check: Check; current: Current }>("/api/admin/ai", {
         method: "PUT",
-        body: { apiKey: removeKey ? null : apiKey, defaultModel: def || null, features: feat },
+        body: { apiKey: removeKey ? null : apiKey, skipCheck, defaultModel: def || null, features: feat },
       });
       setApiKey("");
       setData((d) => (d ? { ...d, check: r.check, current: r.current } : d));
       toast("Đã lưu cấu hình AI");
-    } catch (e) { toast(e instanceof ApiError ? e.message : "Lưu thất bại", "err"); }
+    } catch (e) {
+      const m = e instanceof ApiError ? `${e.message}${e.fields ? ` (${Object.values(e.fields).join("; ")})` : ""}` : "Lưu thất bại";
+      setLoadErr(m); toast(m, "err");
+    }
     setBusy(false);
   }
   async function test(model: string, key: string) {
@@ -56,7 +60,12 @@ export function AiConfigForm() {
   }
 
   if (loading && !data) return <div className="flex items-center gap-2 text-sm text-muted"><Loader2 className="animate-spin" size={16} /> Đang kiểm tra API key và lấy danh sách model từ Gemini…</div>;
-  if (!data) return <button type="button" className="btn btn-solid" onClick={load}>Thử lại</button>;
+  if (!data) return (
+    <div className="space-y-3">
+      {loadErr && <p className="text-sm text-red-700" role="alert">{loadErr}</p>}
+      <button type="button" className="btn btn-solid" onClick={load}>Thử lại</button>
+    </div>
+  );
   const { check, current } = data;
   const options = (selected: string) => {
     const ids = new Set(check.models.map((m) => m.id));
@@ -78,11 +87,25 @@ export function AiConfigForm() {
           <span>{check.valid ? `Key hợp lệ — ${check.models.length} model dùng được` : check.error}
             <span className="block text-xs text-muted">{SRC[check.source]}{check.masked ? ` · ${check.masked}` : ""}</span></span>
         </p>
-        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div><label htmlFor="ai-key" className="mb-1 block text-sm">Đổi API key (để trống = giữ nguyên)</label>
-            <input id="ai-key" type="password" autoComplete="off" className="field" placeholder="AIza…" value={apiKey} onChange={(e) => setApiKey(e.target.value)} /></div>
+        {check.source === "none" && (
+          <p className="mt-4 border border-line bg-black/[0.03] p-3 text-sm">
+            Bước 1: lấy key miễn phí tại <a className="link-u" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a> →
+            Bước 2: dán vào ô dưới → bấm <b>Lưu API key</b>. Sau khi key hợp lệ, danh sách model sẽ hiện ra để chọn.
+          </p>
+        )}
+        <form className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end" onSubmit={(e) => { e.preventDefault(); if (apiKey.trim()) { setLoadErr(null); void save(); } }}>
+          <div><label htmlFor="ai-key" className="mb-1 block text-sm">{check.source === "none" ? "Gemini API key" : "Đổi API key (để trống = giữ nguyên)"}</label>
+            <input id="ai-key" type="password" autoComplete="off" className="field" placeholder="AQ.… (hoặc AIza…)" value={apiKey} onChange={(e) => setApiKey(e.target.value)} /></div>
+          <button type="submit" className="btn btn-solid" disabled={busy || !apiKey.trim()}>{busy ? "Đang kiểm tra…" : "Lưu API key"}</button>
           {check.source === "db" && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => confirm("Xoá key đã lưu? Hệ thống sẽ quay về GEMINI_API_KEY trong biến môi trường (nếu có).") && save(true)}>Xoá key đã lưu</button>}
-        </div>
+        </form>
+        {loadErr && <p className="mt-2 text-sm text-red-700" role="alert">{loadErr}</p>}
+        {loadErr && apiKey.trim() && (
+          <p className="mt-2 text-sm">
+            Nếu chắc chắn key đúng nhưng máy chủ không gọi được Google (mạng/proxy chặn):{" "}
+            <button type="button" className="link-u" disabled={busy} onClick={() => confirm("Lưu key mà KHÔNG kiểm tra với Google? Nếu key sai, các chức năng AI sẽ báo lỗi khi dùng.") && save(false, true)}>Vẫn lưu key (bỏ qua kiểm tra)</button>
+          </p>
+        )}
         <p className="mt-2 text-xs text-muted">Key được kiểm tra với Gemini trước khi lưu, mã hoá AES-256-GCM trong DB và không bao giờ gửi ngược về trình duyệt.</p>
       </section>
 
@@ -126,7 +149,8 @@ export function AiConfigForm() {
         </div>
       </section>
 
-      <button type="button" className="btn btn-solid" disabled={busy} onClick={() => save()}>{busy ? "Đang lưu…" : "Lưu cấu hình AI"}</button>
+      {loadErr && <p className="text-sm text-red-700" role="alert">{loadErr}</p>}
+      <button type="button" className="btn btn-solid" disabled={busy} onClick={() => { setLoadErr(null); void save(); }}>{busy ? "Đang lưu…" : "Lưu cấu hình AI"}</button>
     </div>
   );
 }

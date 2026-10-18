@@ -20,7 +20,20 @@ export function errorResponse(e: unknown) {
     return NextResponse.json({ error: { code: "VALIDATION", message: e.issues[0]?.message ?? "Dữ liệu không hợp lệ" } }, { status: 400 });
   }
   console.error("[api]", e);
+  // Postgres: thieu bang/cot (chua chay migrate sau khi cap nhat source) -> noi ro cach sua thay vi loi chung chung
+  const pg = pgError(e);
+  if (pg && (pg.code === "42P01" || pg.code === "42703")) {
+    return NextResponse.json({ error: { code: "INTERNAL", message: `Database chưa cập nhật (${pg.message.slice(0, 120)}). Chạy: pnpm db:migrate rồi tải lại trang.` } }, { status: 500 });
+  }
   return NextResponse.json({ error: { code: "INTERNAL", message: "Có lỗi xảy ra, vui lòng thử lại" } }, { status: 500 });
+}
+
+function pgError(e: unknown): { code: string; message: string } | null {
+  for (let x: unknown = e, i = 0; x && i < 4; x = (x as { cause?: unknown }).cause, i++) {
+    const o = x as { code?: unknown; message?: unknown };
+    if (typeof o.code === "string" && /^[0-9A-Z]{5}$/.test(o.code)) return { code: o.code, message: String(o.message ?? "") };
+  }
+  return null;
 }
 
 /** Boc handler: bat loi -> JSON thong nhat, khong lo stack trace ra ngoai */

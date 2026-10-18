@@ -43,7 +43,8 @@ export default async function AdminProducts({ searchParams }: { searchParams: Pr
         <div className="flex flex-wrap gap-2">
           <a href={`/api/admin/export?format=json${status ? `&status=${status}` : ""}`} className="btn btn-ghost">Xuất JSON</a>
           <a href={`/api/admin/export?format=csv${status ? `&status=${status}` : ""}`} className="btn btn-ghost">Xuất CSV</a>
-          <Link href="/admin/nhap-csv" className="btn btn-ghost">Nhập</Link>
+          <a href={`/api/admin/export?format=xlsx${status ? `&status=${status}` : ""}`} className="btn btn-ghost">Xuất Excel</a>
+          <Link href="/admin/nhap-du-lieu" className="btn btn-ghost">Nhập</Link>
           <Link href="/admin/san-pham/moi" className="btn btn-solid"><Plus size={16} /> Thêm sản phẩm</Link>
         </div>
       </div>

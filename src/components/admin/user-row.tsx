@@ -54,7 +54,7 @@ export function UserRow({ u, canReveal }: { u: UserListItem; canReveal: boolean 
         <option value="customer">Khách hàng</option><option value="editor">Biên tập</option><option value="admin">Quản trị</option></select></td>
       <td className="p-3"><button type="button" disabled={busy || u.self} onClick={() => save({ status: status === "active" ? "blocked" : "active" })}
         className={`px-2.5 py-1 text-[11px] font-semibold ${status === "active" ? "bg-ok/10 text-ok" : "bg-rose/10 text-rose"}`}>{status === "active" ? "Hoạt động" : "Đã khoá"}</button></td>
-      <td className="p-3 text-xs text-muted">{new Date(u.createdAt).toLocaleDateString("vi-VN")}</td>
+      <td className="p-3 text-xs text-muted">{new Date(u.createdAt).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}</td>
     </tr>
   );
 }

@@ -21,7 +21,7 @@ Bảng: styles, categories, product_types, products, clicks, favorites, users, u
 ## 4. Trang
 Public: `/`, `/phong-cach/[style]`, `/phong-cach/[style]/[category]`, `/san-pham`, `/san-pham/[slug]`, `/moi-ve`, `/ban-chay`, `/giam-gia`, `/tim-kiem`, `/yeu-thich`, `/dang-nhap`, `/dang-ky`, `/chinh-sach/[slug]`, `/go/[slug]`, sitemap, robots.
 Tài khoản: `/tai-khoan` (họ tên, SĐT, ngày sinh, giới tính, địa chỉ, CCCD, size, chiều cao, ngân sách, phong cách yêu thích, avatar, đổi mật khẩu).
-Admin: `/admin` (dashboard click 30 ngày, top sản phẩm, từ khoá tìm không ra, nhật ký), `/admin/san-pham` (+ form chọn Phong cách → Thể loại → Loại), `/admin/phan-loai`, `/admin/nhap-csv`, `/admin/nguoi-dung`, `/admin/cai-dat`. Ảnh bìa admin = banner; avatar admin mặc định = ảnh người mẫu.
+Admin: `/admin` (dashboard click 30 ngày, top sản phẩm, từ khoá tìm không ra, nhật ký), `/admin/san-pham` (+ form chọn Phong cách → Thể loại → Loại), `/admin/phan-loai`, `/admin/nhap-du-lieu` và `/admin/nhap-shopee`, `/admin/nguoi-dung`, `/admin/cai-dat`. Ảnh bìa admin = banner; avatar admin mặc định = ảnh người mẫu.
 
 ## 5. Tìm kiếm (Gemini + LangChain)
 `parsePrice` (dưới 500k, 200-400k, từ 1tr2…) → `parseQuery` (alias index dài-nhất-trước: loại → phong cách → thể loại, màu, sắp xếp) → nếu câu chưa tự giải thích và có `GEMINI_API_KEY`: `ChatGoogleGenerativeAI.withStructuredOutput(zod)` → kết quả được **lọc theo slug có thật trong DB** → `mergePlans` (luật ưu tiên số/slug) → SQL. 0 kết quả → nới dần: từ khoá → màu → loại → giá → thể loại, và báo rõ đã bỏ gì.

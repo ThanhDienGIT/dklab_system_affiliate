@@ -1,6 +1,6 @@
 # Chuẩn nhập/xuất sản phẩm `eleonore.products.v1`
 
-Trang: **Admin → Nhập / xuất** (`/admin/nhap-csv`), nút *Xuất JSON/CSV* ở danh sách sản phẩm, API `GET /api/admin/export?format=json|csv&status=&ids=1,2`.
+Trang: **Admin → Nhập dữ liệu / Nhập Shopee** (`/admin/nhap-du-lieu`, `/admin/nhap-shopee`), nút *Xuất JSON/CSV* ở danh sách sản phẩm, API `GET /api/admin/export?format=json|csv&status=&ids=1,2`.
 
 ## JSON
 ```json
@@ -26,3 +26,11 @@ UTF-8, cột nhận diện không phân biệt hoa/thường/dấu. Danh sách m
 
 ## DB
 Migration `0003_product_detail_reviews`: `products.detail jsonb`, `products.raw_data jsonb`, bảng `product_reviews` (RLS bật). Chạy `pnpm db:migrate`.
+
+
+## Excel (.xlsx) — khuyên dùng
+
+* `GET /api/admin/import/template?format=xlsx` — template trống đủ 33 cột; `POST` cùng đường dẫn chuyển file Shopee Affiliate thành template đã điền sẵn.
+* `GET /api/admin/export?format=xlsx` — xuất sản phẩm hiện có dạng Excel.
+* Sheet `SanPham` có **dropdown** Phong cách / Thể loại / Loại (phụ thuộc thể loại) / Sàn bán / Trạng thái / Nổi bật lấy từ **Admin → Phân loại**; sheet `DanhMuc` là danh sách tham chiếu, `HuongDan` giải thích từng cột.
+* Trang nhập: `/admin/nhap-shopee` (file Shopee Affiliate) và `/admin/nhap-du-lieu` (template chuẩn / dữ liệu tool cào).

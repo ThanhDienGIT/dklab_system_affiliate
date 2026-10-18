@@ -19,8 +19,8 @@ export class ProductAdminService {
   ) {}
 
   /** Kiem tra phong cach / the loai / loai cu the co khop nhau khong (loai phai thuoc the loai) */
-  private async resolve(v: ProductInput) {
-    const t = await this.taxonomy();
+  private async resolve(v: ProductInput, taxo?: Taxonomy) {
+    const t = taxo ?? (await this.taxonomy());
     const style = t.styles.find((s) => s.id === v.styleId);
     const cat = t.categories.find((c) => c.id === v.categoryId);
     if (!style) throw new AppError("VALIDATION", "Phong cách không tồn tại", { styleId: "Chọn phong cách" });
@@ -40,8 +40,8 @@ export class ProductAdminService {
     return slug;
   }
 
-  private async toWrite(v: ProductInput, exceptId?: number): Promise<ProductWrite> {
-    const { style, cat, type } = await this.resolve(v);
+  private async toWrite(v: ProductInput, exceptId?: number, taxo?: Taxonomy): Promise<ProductWrite> {
+    const { style, cat, type } = await this.resolve(v, taxo);
     if (v.originalPrice !== null && v.originalPrice <= v.price) v = { ...v, originalPrice: null };
     return {
       ...v,
@@ -93,8 +93,8 @@ export class ProductAdminService {
 
   setStatus(id: number, status: "draft" | "published" | "archived") { return this.products.setStatus(id, status); }
 
-  /** Dung cho import: tinh lai searchText + slug tu input da hop le */
-  async prepare(v: ProductInput, exceptId?: number) { return this.toWrite(v, exceptId); }
+  /** Dung cho import: tinh lai searchText + slug tu input da hop le. `taxo`: danh muc moi nhat (khong qua cache) */
+  async prepare(v: ProductInput, exceptId?: number, taxo?: Taxonomy) { return this.toWrite(v, exceptId, taxo); }
   findByItemId(merchant: string, itemId: string) { return this.products.findByItemId(merchant, itemId); }
   findBySlug(slug: string) { return this.products.findBySlug(slug, true); }
   upsertWrite(id: number | null, w: ProductWrite) { return id ? this.products.update(id, w).then(() => id) : this.products.create(w); }

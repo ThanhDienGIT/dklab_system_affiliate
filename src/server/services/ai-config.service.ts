@@ -17,6 +17,20 @@ export interface KeyCheck {
   models: GeminiModel[];
 }
 
+/** Don key dan vao: bo khoang trang/xuong dong, dau nhay, tien to "GEMINI_API_KEY=" / "key=" */
+export function normalizeKey(raw: string): string {
+  return raw.replace(/[\s\u200B-\u200D\uFEFF]+/g, "").replace(/^(GEMINI_API_KEY|GOOGLE_API_KEY|api_?key|key)[=:]/i, "").replace(/^["'`]+|["'`]+$/g, "");
+}
+/** null = hop le; con lai = ly do cu the (de admin biet sai cho nao). Google tu kiem tra phan con lai. */
+export function keyProblem(k: string): string | null {
+  if (k.length < 20) return `quá ngắn (${k.length} ký tự) — có thể chưa copy đủ`;
+  if (k.length > 300) return "quá dài — có thể đã dán nhầm cả đoạn văn bản";
+  const bad = k.match(/[^\w.\-~+/=]/);
+  if (bad) return `chứa ký tự không hợp lệ "${bad[0]}"`;
+  if (/^xkeysib-/i.test(k)) return "đây là key Brevo (gửi mail), không phải key Gemini";
+  return null;
+}
+
 export const maskKey = (k: string) => (k.length <= 8 ? "••••" : `${k.slice(0, 4)}••••••••${k.slice(-4)}`);
 
 /** Goi GET /v1beta/models de vua kiem tra key vua lay danh sach model (chi giu model ho tro generateContent). */
@@ -24,13 +38,23 @@ export async function fetchGeminiModels(apiKey: string, fetcher: Fetcher = fetch
   const out: GeminiModel[] = [];
   let token = "";
   for (let page = 0; page < 5; page++) {
-    const res = await fetcher(`${API}/models?pageSize=200${token ? `&pageToken=${encodeURIComponent(token)}` : ""}`, {
-      headers: { "x-goog-api-key": apiKey }, signal: AbortSignal.timeout(timeoutMs), cache: "no-store",
-    });
+    let res: Response;
+    try {
+      res = await fetcher(`${API}/models?pageSize=200${token ? `&pageToken=${encodeURIComponent(token)}` : ""}`, {
+        headers: { "x-goog-api-key": apiKey }, signal: AbortSignal.timeout(timeoutMs), cache: "no-store",
+      });
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e);
+      throw new AppError("VALIDATION", /timeout|abort/i.test(m) ? "Không kết nối được Gemini API (quá thời gian) — kiểm tra mạng/proxy/firewall" : `Không kết nối được Gemini API: ${m.slice(0, 160)}`);
+    }
     if (!res.ok) {
       let msg = `HTTP ${res.status}`;
       try { const j = (await res.json()) as { error?: { message?: string } }; if (j.error?.message) msg = j.error.message; } catch { /* ignore */ }
-      throw new AppError("VALIDATION", res.status === 400 || res.status === 403 || res.status === 401 ? `API key không hợp lệ hoặc bị từ chối: ${msg.slice(0, 160)}` : `Gemini API lỗi: ${msg.slice(0, 160)}`);
+      const hint = res.status === 401 || res.status === 400 || res.status === 403
+        ? /^AIza/.test(apiKey) ? " — key dạng AIza… đã bị Google ngừng hỗ trợ (từ 09/2026), hãy tạo key mới dạng AQ.… tại aistudio.google.com/apikey"
+          : " — Google trả lỗi này khi key sai, thiếu ký tự hoặc đã bị thu hồi: copy lại TOÀN BỘ key (không thừa dấu cách/nháy) hoặc tạo key mới"
+        : "";
+      throw new AppError("VALIDATION", res.status === 400 || res.status === 403 || res.status === 401 ? `API key không hợp lệ hoặc bị từ chối: ${msg.slice(0, 160)}${hint}` : `Gemini API lỗi: ${msg.slice(0, 160)}`);
     }
     const j = (await res.json()) as { models?: Record<string, unknown>[]; nextPageToken?: string };
     for (const m of j.models ?? []) {
@@ -83,12 +107,13 @@ export class AiConfigService {
   }
   invalidate() { this.cache = null; this.modelCache = null; }
 
-  private keyOf(row: AiConfigRow): { key: string | null; source: "db" | "env" | "none" } {
+  private keyOf(row: AiConfigRow): { key: string | null; source: "db" | "env" | "none"; broken?: boolean } {
+    let broken = false;
     if (row.apiKeyEnc) {
-      try { return { key: this.crypto.decrypt(row.apiKeyEnc), source: "db" }; } catch { /* key hong -> roi ve env */ }
+      try { return { key: this.crypto.decrypt(row.apiKeyEnc), source: "db" }; } catch { broken = true; /* doi PII_ENCRYPTION_KEY -> roi ve env */ }
     }
     const e = this.getEnv().apiKey;
-    return e ? { key: e, source: "env" } : { key: null, source: "none" };
+    return e ? { key: e, source: "env", broken } : { key: null, source: "none", broken };
   }
 
   /** Dung o noi goi AI: feature -> model rieng (neu bat) -> model mac dinh -> GEMINI_MODEL. Tra null neu chua co key. */
@@ -105,8 +130,9 @@ export class AiConfigService {
   /** Luc vao trang admin: kiem tra key + lay danh sach model truc tiep tu Gemini. */
   async check(force = false): Promise<KeyCheck> {
     const row = await this.row();
-    const { key, source } = this.keyOf(row);
-    if (!key) return { source, masked: null, valid: false, error: "Chưa có API key (đặt GEMINI_API_KEY hoặc nhập ở form bên dưới)", models: [] };
+    const { key, source, broken } = this.keyOf(row);
+    const brokenMsg = "Key đã lưu không giải mã được (PII_ENCRYPTION_KEY đã bị đổi) — hãy nhập lại API key và lưu";
+    if (!key) return { source, masked: null, valid: false, error: broken ? brokenMsg : "Chưa có API key (đặt GEMINI_API_KEY hoặc nhập ở form bên dưới)", models: [] };
     const keyId = maskKey(key);
     if (!force && this.modelCache && this.modelCache.keyId === keyId && Date.now() - this.modelCache.at < CACHE_MS) {
       return { source, masked: keyId, valid: true, error: null, models: this.modelCache.models };
@@ -125,7 +151,11 @@ export class AiConfigService {
     return {
       defaultModel: row.defaultModel,
       envModel: this.getEnv().model,
-      features: Object.fromEntries(AI_FEATURE_IDS.map((id) => [id, row.features[id] ?? { model: "", enabled: false }])),
+      // "unset" = chua chon model (cot DB bat buoc co gia tri) -> tra ve rong cho form
+      features: Object.fromEntries(AI_FEATURE_IDS.map((id) => {
+        const f = row.features[id];
+        return [id, f && f.model !== "unset" ? f : { model: "", enabled: false }];
+      })),
     };
   }
 
@@ -139,20 +169,27 @@ export class AiConfigService {
   async save(input: {
     apiKey?: string | null; defaultModel: string | null;
     features: Partial<Record<AiFeatureId, { model: string; enabled: boolean }>>; actorId: string | null;
+    /** luu key ma khong goi Gemini (mang chan / Google loi tam thoi); admin tu chiu trach nhiem */
+    skipCheck?: boolean;
   }): Promise<KeyCheck> {
     let apiKeyEnc: string | null | undefined;
     let candidateKey: string | null = this.keyOf(await this.row()).key;
     if (input.apiKey === null) { apiKeyEnc = null; candidateKey = this.getEnv().apiKey ?? null; }
     else if (typeof input.apiKey === "string" && input.apiKey.trim()) {
-      const k = input.apiKey.trim();
-      if (!/^[\w-]{20,200}$/.test(k)) throw new AppError("VALIDATION", "API key sai định dạng");
+      const k = normalizeKey(input.apiKey);
+      const why = keyProblem(k);
+      if (why) throw new AppError("VALIDATION", `API key sai định dạng: ${why}`);
       // Kiem tra key that su dung duoc truoc khi luu
-      await fetchGeminiModels(k, this.fetcher);
-      apiKeyEnc = this.crypto.encrypt(k); candidateKey = k;
+      if (!input.skipCheck) await fetchGeminiModels(k, this.fetcher);
+      try { apiKeyEnc = this.crypto.encrypt(k); }
+      catch (e) {
+        throw new AppError("VALIDATION", `Không mã hoá được key: ${e instanceof Error ? e.message.replace(/^\[eleonore\]\s*/, "") : "lỗi"} — sửa PII_ENCRYPTION_KEY trong .env rồi khởi động lại`);
+      }
+      candidateKey = k;
     }
     const chosen = [input.defaultModel, ...Object.values(input.features).filter((f) => f?.enabled).map((f) => f!.model)].filter(Boolean) as string[];
     for (const m of chosen) if (!MODEL_ID_RE.test(m)) throw new AppError("VALIDATION", `Tên model không hợp lệ: ${m}`);
-    if (candidateKey && chosen.length) {
+    if (candidateKey && chosen.length && !input.skipCheck) {
       const live = new Set((await fetchGeminiModels(candidateKey, this.fetcher)).map((m) => m.id));
       const bad = chosen.find((m) => !live.has(m));
       if (bad) throw new AppError("VALIDATION", `Model "${bad}" không có trong danh sách Gemini API của key này`);

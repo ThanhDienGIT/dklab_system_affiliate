@@ -100,6 +100,7 @@ export const SEED_CATEGORIES: SeedCategory[] = [
       { slug: "khuyen-tai", name: "Khuyên tai", aliases: ["bong tai", "hoa tai", "earring"] },
       { slug: "gang-tay-ren", name: "Găng tay ren", aliases: ["gang tay", "gang ren"] },
       { slug: "mu-beret", name: "Mũ beret", aliases: ["beret", "non beret", "mu"] },
+      { slug: "phu-kien-dien-thoai", name: "Phụ kiện điện thoại", aliases: ["op lung", "op dien thoai", "vo dien thoai", "pop socket", "popsocket", "gia do dien thoai", "tai nghe", "iphone", "airpods", "sac du phong"] },
     ],
   },
   {
@@ -120,5 +121,18 @@ export const SEED_CATEGORIES: SeedCategory[] = [
       { slug: "set-di-choi", name: "Set đồ dạo phố", aliases: ["set di choi", "do dao pho"] },
       { slug: "set-du-tiec", name: "Set dự tiệc", aliases: ["set du tiec", "do du tiec", "do di tiec"] },
     ],
+  },
+  {
+    slug: "qua-tang", name: "Quà tặng", aliases: ["qua tang", "hop qua", "set qua", "bo qua", "gift", "gift box", "qua sinh nhat", "qua 20 10"],
+    types: [
+      { slug: "set-qua-tang", name: "Hộp / set quà tặng", aliases: ["hop qua", "set qua", "bo qua tang", "gift box", "hop qua tang"] },
+      { slug: "gau-bong", name: "Gấu bông", aliases: ["gau bong", "thu bong", "teddy"] },
+      { slug: "nen-thom", name: "Nến thơm & tinh dầu", aliases: ["nen thom", "tinh dau", "sap thom"] },
+      { slug: "suc-khoe-tra", name: "Trà & chăm sóc sức khỏe", aliases: ["nhuy hoa nghe tay", "saffron", "dong trung ha thao", "tra hoa", "tra thao moc", "goi thao duoc"] },
+    ],
+  },
+  {
+    slug: "khac", name: "Khác", aliases: ["khac", "other"],
+    types: [],
   },
 ];

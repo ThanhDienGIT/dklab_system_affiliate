@@ -102,8 +102,11 @@ export class AuthService {
       if (Date.now() - rec.revokedAt.getTime() > REUSE_GRACE_MS) {
         await this.tokens.revokeFamily(rec.familyId);
         await this.misc.audit({ actorId: rec.userId, action: "auth.refresh_reuse", entity: "user", entityId: rec.userId, ipHash: meta.ipHash });
+        throw new AppError("UNAUTHORIZED", "Phiên đăng nhập không hợp lệ");
       }
-      throw new AppError("UNAUTHORIZED", "Phiên đăng nhập không hợp lệ");
+      // vua duoc xoay vong boi mot request song song (nhieu trang cung hit khi token het han): khong phai tan cong,
+      // request kia da cap cookie moi -> bao CONFLICT de noi goi KHONG xoa cookie
+      throw new AppError("CONFLICT", "Phiên vừa được gia hạn, thử lại");
     }
     if (rec.expiresAt < new Date()) throw new AppError("UNAUTHORIZED", "Phiên đăng nhập đã hết hạn");
     const user = await this.users.findById(rec.userId);

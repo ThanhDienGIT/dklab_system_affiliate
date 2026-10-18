@@ -91,3 +91,60 @@ describe("AiConfigService.save/check", () => {
     expect(c.error).toBeTruthy();
   });
 });
+
+describe("AiConfigService - lỗi cấu hình thường gặp", () => {
+  it("'unset' (chưa chọn model) trả về rỗng cho form", async () => {
+    const repo = fakeRepo();
+    repo.row.features = { search: { model: "unset", enabled: false } };
+    const { svc } = make({}, repo);
+    expect((await svc.current()).features.search).toEqual({ model: "", enabled: false });
+  });
+  it("key đã lưu không giải mã được → báo nhập lại", async () => {
+    const repo = fakeRepo();
+    repo.row.apiKeyEnc = "hong";
+    const svc = new AiConfigService(repo, () => ({ model: "gemini-2.5-flash" }), { encrypt: (s) => s, decrypt: () => { throw new Error("bad"); } }, okFetch);
+    expect((await svc.check(true)).error).toMatch(/không giải mã được/);
+  });
+  it("PII_ENCRYPTION_KEY sai → báo rõ thay vì lỗi 500", async () => {
+    const svc = new AiConfigService(fakeRepo(), () => ({ model: "gemini-2.5-flash" }), { encrypt: () => { throw new Error("[eleonore] PII_ENCRYPTION_KEY phải là base64 của đúng 32 byte"); }, decrypt: (s) => s }, okFetch);
+    await expect(svc.save({ apiKey: KEY, defaultModel: null, features: {}, actorId: null })).rejects.toThrow(/PII_ENCRYPTION_KEY/);
+  });
+  it("mất mạng → báo không kết nối được", async () => {
+    const down = (async () => { throw new Error("fetch failed"); }) as never;
+    await expect(fetchGeminiModels(KEY, down)).rejects.toThrow(/Không kết nối được/);
+  });
+});
+
+describe("normalizeKey / keyProblem", () => {
+  it("bỏ khoảng trắng, xuống dòng, dấu nháy, tiền tố", async () => {
+    const { normalizeKey } = await import("@/server/services/ai-config.service");
+    expect(normalizeKey(' "AIzaSyTESTKEY1234567890abcdefgh"\n')).toBe("AIzaSyTESTKEY1234567890abcdefgh");
+    expect(normalizeKey("GEMINI_API_KEY=AIzaSyTESTKEY1234567890abcdefgh")).toBe("AIzaSyTESTKEY1234567890abcdefgh");
+  });
+  it("lý do cụ thể", async () => {
+    const { keyProblem } = await import("@/server/services/ai-config.service");
+    expect(keyProblem("AIza123")).toMatch(/quá ngắn/);
+    expect(keyProblem("xkeysib-18ed663e2eb1928513d4bd54d65")).toMatch(/Brevo/);
+    expect(keyProblem("AIzaSyTESTKEY1234567890abcdefgh")).toBeNull();
+    expect(keyProblem("AQ.Ab8RN6KxTESTKEY1234567890abcdef")).toBeNull();
+  });
+});
+
+describe("Lưu key khi không gọi được Google", () => {
+  const down = (async () => { throw new Error("fetch failed"); }) as never;
+  const feat = { search: { model: "unset", enabled: false } };
+  it("mặc định từ chối; skipCheck=true vẫn lưu (mã hoá)", async () => {
+    const repo = fakeRepo();
+    const svc = new AiConfigService(repo, () => ({ apiKey: undefined, model: "gemini-2.5-flash" }), crypto, down);
+    await expect(svc.save({ apiKey: "AQ.Ab8RN6LxOET9itSf3tigUDWKf2KmNIFbucx", defaultModel: null, features: feat, actorId: null })).rejects.toThrow(/Không kết nối được/);
+    expect(repo.row.apiKeyEnc).toBeNull();
+    await svc.save({ apiKey: "AQ.Ab8RN6LxOET9itSf3tigUDWKf2KmNIFbucx", defaultModel: null, features: feat, actorId: null, skipCheck: true });
+    expect(repo.row.apiKeyEnc).toBe("enc:AQ.Ab8RN6LxOET9itSf3tigUDWKf2KmNIFbucx");
+  });
+  it("401 ACCESS_TOKEN_TYPE_UNSUPPORTED → gợi ý copy lại đủ key / tạo key mới", async () => {
+    const f = (async () => new Response(JSON.stringify({ error: { message: "ACCESS_TOKEN_TYPE_UNSUPPORTED" } }), { status: 401 })) as never;
+    await expect(fetchGeminiModels("AQ.Ab8RN6LxOET9itSf3tigUDWKf2KmNIFbucx", f)).rejects.toThrow(/copy lại TOÀN BỘ key/);
+    await expect(fetchGeminiModels("AIzaSyTESTKEY1234567890abcdefgh", f)).rejects.toThrow(/ngừng hỗ trợ/);
+  });
+});
+
