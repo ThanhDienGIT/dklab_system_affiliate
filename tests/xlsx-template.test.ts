@@ -33,15 +33,42 @@ describe("Template Excel", () => {
     expect((ws.getRow(1).values as string[]).slice(1)).toEqual([...CSV_HEAD]);
     const dv = (h: string, r = 2) => ws.getCell(r, CSV_HEAD.indexOf(h as never) + 1).dataValidation;
     expect(dv("Phong cách")?.type).toBe("list");
-    expect(dv("Phong cách")?.formulae?.[0]).toMatch(/^DanhMuc!\$A\$2:\$A\$\d+$/);
-    expect(dv("Thể loại")?.formulae?.[0]).toMatch(/^DanhMuc!\$B\$2:\$B\$\d+$/);
-    expect(dv("Loại")?.formulae?.[0]).toMatch(/OFFSET/);
+    const styleNames = t.styles.filter((s) => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map((s) => s.name);
+    expect(dv("Phong cách")?.formulae?.[0]).toBe(`"${styleNames.join(",")}"`);
+    expect(dv("Thể loại")?.formulae?.[0]).toMatch(/^"[^"]+"$/);
+    expect(dv("Loại")?.formulae?.[0]).toMatch(/^OFFSET\(DanhMuc!\$C\$2,IF\(COUNTIF\(DM_LoaiTheLoai,F2\)/);
+    expect(dv("Loại")?.formulae?.[0]).not.toMatch(/IFERROR/);
     expect(dv("Sàn bán")?.formulae?.[0]).toBe('"shopee,tiktok,lazada,other"');
     expect(dv("Tên sản phẩm")).toBeUndefined();
     expect(dv("Phong cách", 2001)).toBeDefined();
     const ref = wb.getWorksheet("DanhMuc")!;
     const styles = ref.getColumn(1).values.slice(2).filter(Boolean);
     expect(styles).toEqual(t.styles.filter((s) => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map((s) => s.name));
+  });
+
+  it("xuất có dữ liệu: dòng đã có thể loại → dropdown Loại đúng các loại của thể loại đó, không chồng quy tắc", async () => {
+    const t = sampleTaxonomy();
+    const [c1, c2] = t.categories;
+    const row = (cat: string) => CSV_HEAD.map((h) => (h === "Tên sản phẩm" ? "SP" : h === "Giá" ? 1000 : h === "Thể loại" ? cat : ""));
+    const buf = await buildProductWorkbook({ head: CSV_HEAD, rows: [row(c1!.name), row(c1!.name), row(c2!.name), row("")], taxonomy: t, title: "x" });
+    const wb = await load(buf);
+    const ws = wb.getWorksheet("SanPham")!;
+    const col = CSV_HEAD.indexOf("Loại") + 1;
+    const typesOf = (id: number) => `"${t.types.filter((x) => x.categoryId === id).sort((a, b) => a.sortOrder - b.sortOrder).map((x) => x.name).join(",")}"`;
+    expect(ws.getCell(2, col).dataValidation?.formulae?.[0]).toBe(typesOf(c1!.id));
+    expect(ws.getCell(3, col).dataValidation?.formulae?.[0]).toBe(typesOf(c1!.id));
+    expect(ws.getCell(4, col).dataValidation?.formulae?.[0]).toBe(typesOf(c2!.id));
+    expect(ws.getCell(5, col).dataValidation?.formulae?.[0]).toMatch(/^OFFSET/);
+    expect(ws.getCell(2001, col).dataValidation?.formulae?.[0]).toMatch(/^OFFSET/);
+    // moi vung chi 1 quy tac, khong vung nao chong len nhau trong cung cot (chong lan -> Excel "sua tep" va xoa het dropdown)
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(buf);
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    const refs = [...xml.matchAll(/sqref="([A-Z]+)(\d+):\1(\d+)"/g)].map((m) => ({ c: m[1]!, a: +m[2]!, b: +m[3]! }));
+    expect(refs.filter((x) => x.c === "G").length).toBe(3); // [2-3] the loai 1, [4] the loai 2, [5-2001] cong thuc
+    for (const x of refs) for (const y of refs) if (x !== y && x.c === y.c) expect(x.b < y.a || y.b < x.a).toBe(true);
+    const wbXml = await zip.file("xl/workbook.xml")!.async("string");
+    expect(wbXml).toMatch(/<definedName name="DM_LoaiTheLoai">DanhMuc!\$D\$2:\$D\$\d+<\/definedName>/);
   });
 
   it("template trống đọc lại không lỗi 'thiếu cột' (chọn đúng sheet SanPham)", async () => {

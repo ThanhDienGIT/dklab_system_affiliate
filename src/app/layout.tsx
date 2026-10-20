@@ -6,6 +6,7 @@ import { AnnouncementBar } from "@/components/layout/announcement";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ContactWidget } from "@/components/layout/contact-widget";
+import { SiteChrome } from "@/components/layout/site-chrome";
 import { NewsletterPopup } from "@/components/layout/newsletter-popup";
 import { Experience } from "@/components/ui/experience";
 import { getContainer } from "@/server/container";
@@ -37,11 +38,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Providers user={session}>
           <Experience>
           <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:bg-ink focus:px-4 focus:py-2 focus:text-ivory" style={{ zIndex: "var(--z-toast)" }}>Bỏ qua tới nội dung</a>
-          <AnnouncementBar text={settings.announcement.text} href={settings.announcement.href} />
-          <Header />
+          <SiteChrome>
+            <AnnouncementBar text={settings.announcement.text} href={settings.announcement.href} />
+            <Header />
+          </SiteChrome>
           <main id="main">{children}</main>
-          <Footer />
-          <ContactWidget contact={settings.contact} />
+          <SiteChrome>
+            <Footer />
+            <ContactWidget contact={settings.contact} />
+          </SiteChrome>
           <NewsletterPopup enabled={settings.popup.enabled} delaySec={settings.popup.delaySec} title={settings.popup.title} body={settings.popup.body} loggedIn={Boolean(user)} />
           </Experience>
         </Providers>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Archive, FilePen, MousePointerClick, ShoppingBag, Users, type LucideIcon } from "lucide-react";
+import { PageHeader } from "@/components/admin/page-header";
 import { getContainer } from "@/server/container";
 import { can } from "@/server/security/rbac";
 import { currentUser } from "@/server/session";
@@ -13,13 +15,14 @@ export default async function Dashboard() {
   const audit: Awaited<ReturnType<typeof c.misc.recentAudit>> = canAudit ? await c.misc.recentAudit(8) : [];
   const max = Math.max(1, ...d.clickSeries.map((x) => x.count));
   return (
-    <div className="space-y-10">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Đang bán" value={d.products.published} />
-        <Stat label="Nháp" value={d.products.draft} />
-        <Stat label="Lưu trữ" value={d.products.archived} />
-        <Stat label="Click 7 ngày" value={d.clicks7d} accent />
-        <Stat label="Người dùng" value={d.users} />
+    <div className="space-y-6">
+      <PageHeader title="Bảng điều khiển" crumbs={[{ label: "Tổng quan" }]} description="Tình hình sản phẩm, lượt click affiliate và tìm kiếm trên website." />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <Stat label="Đang bán" value={d.products.published} icon={ShoppingBag} href="/admin/san-pham?status=published" />
+        <Stat label="Nháp" value={d.products.draft} icon={FilePen} href="/admin/san-pham?status=draft" />
+        <Stat label="Lưu trữ" value={d.products.archived} icon={Archive} href="/admin/san-pham?status=archived" />
+        <Stat label="Click 7 ngày" value={d.clicks7d} icon={MousePointerClick} accent href="/admin/thong-ke?d=7" />
+        <Stat label="Người dùng" value={d.users} icon={Users} />
       </div>
 
       <section className="border border-line bg-paper p-5">
@@ -65,11 +68,14 @@ export default async function Dashboard() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
-  return (
-    <div className={`border p-4 ${accent ? "border-gold bg-gold/10" : "border-line bg-paper"}`}>
-      <p className="font-display text-4xl leading-none">{value.toLocaleString("vi-VN")}</p>
-      <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
-    </div>
+function Stat({ label, value, icon: Icon, accent, href }: { label: string; value: number; icon: LucideIcon; accent?: boolean; href?: string }) {
+  const body = (
+    <>
+      <span className={`grid h-12 w-12 place-items-center ${accent ? "bg-gold text-ivory" : "bg-sand text-gold-deep"}`}><Icon size={22} strokeWidth={1.6} /></span>
+      <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
+      <p className="font-display mt-1 text-[34px] leading-none">{value.toLocaleString("vi-VN")}</p>
+    </>
   );
+  const cls = `block border bg-paper p-5 transition-colors ${accent ? "border-gold" : "border-line"} ${href ? "hover:border-ink" : ""}`;
+  return href ? <Link href={href} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
 }
