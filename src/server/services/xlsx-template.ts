@@ -3,8 +3,9 @@ import { COLORS } from "@/lib/constants";
 
 export type Cell = string | number | null | undefined;
 
-/** Hang toi da du lieu co dropdown (o ngoai khoang nay van nhap duoc, chi khong co dropdown) */
-const MAX_ROWS = 2000;
+/** So dong (toi thieu) co dropdown; xuat nhieu san pham hon thi mo rong them de dong cuoi van co dropdown */
+const MIN_DROPDOWN_ROWS = 2000;
+const EXTRA_ROWS = 200;
 /** Excel gioi han 32.767 ky tu/o; cot JSON dai hon se bi bo (xuat JSON de sao luu day du) */
 const CELL_MAX = 32_000;
 const NUMERIC = new Set(["Giá", "Giá gốc", "Hoa hồng", "Số đánh giá", "Đã bán", "Tồn kho"]);
@@ -71,6 +72,7 @@ export async function buildProductWorkbook(input: WorkbookInput): Promise<Buffer
   const ref = wb.addWorksheet("DanhMuc");
   const guide = wb.addWorksheet("HuongDan");
   const { head, rows, taxonomy: t } = input;
+  const MAX_ROWS = Math.max(MIN_DROPDOWN_ROWS, rows.length + EXTRA_ROWS);
 
   /* ---------- DanhMuc: A phong cach | B the loai | C (trong) | D loai theo the loai (sap xep) + E ten the loai cua loai ---------- */
   const styles = t.styles.filter((s) => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -144,7 +146,7 @@ export async function buildProductWorkbook(input: WorkbookInput): Promise<Buffer
     const title = "Loại chưa có", msg = "Loại này không thuộc thể loại đã chọn hoặc chưa có — thêm ở Admin → Phân loại";
     // gom cac dong lien tiep cung danh sach thanh 1 quy tac; "" = dung cong thuc
     const keyAt = (r: number) => byCat.get(normalizeName(String(rows[r - 2]?.[ci] ?? ""))) ?? "";
-    const last = Math.min(rows.length, MAX_ROWS) + 1; // dong du lieu cuoi cung
+    const last = rows.length + 1; // dong du lieu cuoi cung
     let start = 2;
     for (let r = 3; r <= last + 1; r++) {
       const prev = keyAt(r - 1);
@@ -167,6 +169,7 @@ export async function buildProductWorkbook(input: WorkbookInput): Promise<Buffer
     ["Cách dùng", "Điền sheet SanPham (mỗi dòng 1 sản phẩm) → lưu .xlsx → Admin → Nhập dữ liệu → chọn tệp → Kiểm tra thử → Nhập dữ liệu."],
     ["Cột bắt buộc", "Tên sản phẩm và Giá (đầu cột màu đỏ). Cột khác trống thì hệ thống tự đoán hoặc bỏ qua."],
     ["Dropdown", "Phong cách / Thể loại / Loại / Sàn bán / Trạng thái / Nổi bật chọn từ danh sách lấy từ hệ thống (sheet DanhMuc). Muốn thêm giá trị mới: Admin → Phân loại, rồi tải lại template."],
+    ["Đổi Thể loại của dòng đã xuất?", "Dòng đã có Thể loại lúc xuất thì cột Loại liệt kê sẵn các loại của thể loại đó. Nếu đổi sang thể loại khác, gõ tên loại mới (Excel chỉ cảnh báo, vẫn nhập được) hoặc xoá trắng để hệ thống tự đoán."],
     ["Không thấy mũi tên dropdown?", "Excel mở tệp tải từ Internet ở chế độ Protected View (thanh vàng phía trên) — bấm “Enable Editing / Bật chỉnh sửa” thì dropdown mới hiện. Bấm vào ô (vd cột Thể loại) để thấy mũi tên ▾ bên phải ô."],
     ["Trùng sản phẩm", "Cùng (Sàn bán + Mã sản phẩm) hoặc cùng Slug → cập nhật sản phẩm cũ, không tạo trùng."],
     ["Không đổi tên cột", "Giữ nguyên hàng tiêu đề (dòng 1) và thứ tự cột để nhập không lỗi."],

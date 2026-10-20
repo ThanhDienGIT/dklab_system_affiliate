@@ -64,9 +64,10 @@ export function AdminShell({ groups, user, brand, children }: { groups: AdminNav
 
       <aside id="admin-sidebar" aria-label="Menu quản trị"
         className={cn(
-          "fixed inset-y-0 left-0 flex w-[280px] flex-col border-r border-line bg-paper transition-transform duration-300 ease-[var(--ease-lux)]",
-          "lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 lg:transition-[width]",
-          open ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 flex w-[280px] flex-col border-r border-line bg-paper transition-[transform,visibility] duration-300 ease-[var(--ease-lux)]",
+          "lg:visible lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 lg:transition-[width]",
+          // dong tren mobile: an khoi cay truy cap / Tab (khong de focus vao menu nam ngoai man hinh)
+          open ? "visible translate-x-0" : "invisible -translate-x-full",
           mini && "lg:w-[84px]",
         )}
         style={{ zIndex: "var(--z-drawer)" }}>
