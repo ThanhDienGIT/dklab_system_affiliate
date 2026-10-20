@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePermission } from "@/server/session";
 import { getContainer } from "@/server/container";
+import { PageHeader } from "@/components/admin/page-header";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Blog" };
@@ -12,8 +13,8 @@ export default async function AdminBlog() {
   const posts = await getContainer().blogRepo.listAdmin(100, 0);
   return (
     <>
-      <h1 className="mb-2 text-4xl">Blog</h1>
-      <p className="mb-6 max-w-2xl text-sm text-muted">Tạo bài mới bằng AI từ trang <Link className="underline" href="/admin/san-pham">Sản phẩm</Link> (nút “Blog AI” ở mỗi dòng). Bài AI tạo luôn là bản nháp, cần bạn duyệt rồi mới xuất bản.</p>
+      <PageHeader title="Blog" crumbs={[{ label: "Nội dung" }, { label: "Blog" }]}
+        description={<>Tạo bài mới bằng AI từ trang <Link className="underline" href="/admin/san-pham">Sản phẩm</Link> (nút “Blog AI” ở mỗi dòng). Bài AI tạo luôn là bản nháp, cần bạn duyệt rồi mới xuất bản.</>} />
       {posts.length === 0 ? <p className="py-10 text-muted">Chưa có bài viết.</p> : (
         <ul className="divide-y divide-line border border-line bg-paper">
           {posts.map((p) => (

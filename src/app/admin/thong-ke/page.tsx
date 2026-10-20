@@ -4,6 +4,7 @@ import { requirePermission } from "@/server/session";
 import { getContainer } from "@/server/container";
 import { SmartImage } from "@/components/ui/smart-image";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/admin/page-header";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Thống kê" };
@@ -22,15 +23,14 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-4xl">Thống kê</h1>
-        <nav aria-label="Khoảng thời gian" className="flex border border-line">
+      <PageHeader title="Thống kê" crumbs={[{ label: "Tổng quan" }, { label: "Thống kê" }]} actions={
+        <nav aria-label="Khoảng thời gian" className="flex border border-line bg-paper">
           {PERIODS.map((p) => (
             <Link key={p} href={`/admin/thong-ke?d=${p}`} aria-current={p === days ? "page" : undefined}
-              className={cn("px-4 py-2 text-sm", p === days ? "bg-ink text-ivory" : "hover:bg-sand")}>{p} ngày</Link>
+              className={cn("grid min-h-11 place-items-center px-4 text-sm", p === days ? "bg-ink text-ivory" : "hover:bg-sand")}>{p} ngày</Link>
           ))}
         </nav>
-      </div>
+      } />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Lượt xem sản phẩm" value={nf(sum.views)} />

@@ -48,7 +48,7 @@ export function BulkProvider({ pageIds, total, filter, children }: { pageIds: nu
 
   return (
     <BulkCtx.Provider value={ctx}>
-      <div className="mb-4 flex flex-wrap items-center gap-3 border border-line bg-paper px-4 py-3 text-sm" role="region" aria-label="Thao tác hàng loạt" aria-live="polite">
+      <div className="flex min-h-14 flex-wrap items-center gap-3 border-b border-line bg-sand/40 px-5 py-2.5 text-sm" role="region" aria-label="Thao tác hàng loạt" aria-live="polite">
         {count === 0 ? (
           <>
             <span className="text-muted">Tick ô vuông để chọn sản phẩm cần xoá.</span>

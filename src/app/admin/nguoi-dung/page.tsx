@@ -6,6 +6,7 @@ import { maskCccd } from "@/server/security/pii";
 import { UserRow } from "@/components/admin/user-row";
 import { Pagination } from "@/components/catalog/pagination";
 import { parseCatalogParams, type RawParams } from "@/lib/catalog-params";
+import { PageHeader } from "@/components/admin/page-header";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Người dùng" };
@@ -21,7 +22,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   const href = (n: number) => { const p = new URLSearchParams(); if (q) p.set("q", q); if (role) p.set("role", role); if (n > 1) p.set("trang", String(n)); return `/admin/nguoi-dung${p.size ? `?${p}` : ""}`; };
   return (
     <div>
-      <h1 className="mb-6 text-4xl">Người dùng <span className="text-xl text-muted">({r.total})</span></h1>
+      <PageHeader title={<>Người dùng <span className="text-xl text-muted">({r.total})</span></>} crumbs={[{ label: "Hệ thống" }, { label: "Người dùng" }]} />
       <form className="mb-6 grid gap-3 md:grid-cols-[1fr_180px_auto]" role="search">
         <input name="q" defaultValue={q} placeholder="Tìm tên, email, số điện thoại…" className="field" aria-label="Tìm người dùng" />
         <select name="role" defaultValue={role} className="field" aria-label="Vai trò"><option value="">Mọi vai trò</option><option value="customer">Khách hàng</option><option value="editor">Biên tập</option><option value="admin">Quản trị</option></select>

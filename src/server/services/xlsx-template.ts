@@ -3,8 +3,9 @@ import { COLORS } from "@/lib/constants";
 
 export type Cell = string | number | null | undefined;
 
-/** Hang toi da du lieu co dropdown (o ngoai khoang nay van nhap duoc, chi khong co dropdown) */
-const MAX_ROWS = 2000;
+/** So dong (toi thieu) co dropdown; xuat nhieu san pham hon thi mo rong them de dong cuoi van co dropdown */
+const MIN_DROPDOWN_ROWS = 2000;
+const EXTRA_ROWS = 200;
 /** Excel gioi han 32.767 ky tu/o; cot JSON dai hon se bi bo (xuat JSON de sao luu day du) */
 const CELL_MAX = 32_000;
 const NUMERIC = new Set(["Giá", "Giá gốc", "Hoa hồng", "Số đánh giá", "Đã bán", "Tồn kho"]);
@@ -44,6 +45,14 @@ export interface WorkbookInput {
   title: string;
 }
 
+/** Danh sach dropdown ghi thang ("a,b,c"): Excel gioi han 255 ky tu va dau phay la dau ngan -> qua dai / co dau phay thi tra undefined */
+const inline = (names: string[]) => {
+  if (!names.length || names.some((x) => /[,"]/.test(x))) return undefined;
+  const s = `"${names.join(",")}"`;
+  return s.length <= 255 ? s : undefined;
+};
+const normalizeName = (s: string) => s.normalize("NFC").trim().toLowerCase();
+
 const colLetter = (n: number) => {
   let s = "";
   for (let i = n + 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + ((i - 1) % 26)) + s;
@@ -63,6 +72,7 @@ export async function buildProductWorkbook(input: WorkbookInput): Promise<Buffer
   const ref = wb.addWorksheet("DanhMuc");
   const guide = wb.addWorksheet("HuongDan");
   const { head, rows, taxonomy: t } = input;
+  const MAX_ROWS = Math.max(MIN_DROPDOWN_ROWS, rows.length + EXTRA_ROWS);
 
   /* ---------- DanhMuc: A phong cach | B the loai | C (trong) | D loai theo the loai (sap xep) + E ten the loai cua loai ---------- */
   const styles = t.styles.filter((s) => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -105,30 +115,50 @@ export async function buildProductWorkbook(input: WorkbookInput): Promise<Buffer
   // cot ma SP / slug / tags luon la van ban (tranh Excel doi 11 so thanh 1.2E+10)
   for (const h of TEXT) { const i = head.indexOf(h); if (i >= 0) for (let r = 2; r <= MAX_ROWS + 1; r++) ws.getCell(r, i + 1).numFmt = "@"; }
 
+  // Vung ten (named range): Excel 2007+, Google Sheets, WPS deu hieu; tham chieu thang sang sheet khac thi khong phai app nao cung doc
+  wb.definedNames.add(range("A", styles.length), "DM_PhongCach");
+  wb.definedNames.add(range("B", cats.length), "DM_TheLoai");
+  wb.definedNames.add(range("C", types.length), "DM_Loai");
+  wb.definedNames.add(range("D", types.length), "DM_LoaiTheLoai");
+
   const idx = (h: string) => head.indexOf(h);
   const warn = (title: string, msg: string) => ({ showErrorMessage: true, errorStyle: "warning" as const, errorTitle: title, error: msg, allowBlank: true });
-  // 1 quy tac cho ca cot (khong gan tung o: exceljs se sinh hang nghin quy tac chong lan, Excel bao "can sua tep")
+  // 1 quy tac cho ca cot / doan dong, KHONG chong lan (exceljs gan tung o se sinh hang nghin quy tac, Excel bao "can sua tep" va xoa het dropdown)
   const dv = (ws as unknown as { dataValidations: { add(range: string, rule: unknown): void } }).dataValidations;
-  const colRange = (h: string) => `${colLetter(idx(h))}2:${colLetter(idx(h))}${MAX_ROWS + 1}`;
-  const list = (h: string, formula: string, title: string, msg: string) => {
+  const colRange = (h: string, from = 2, to = MAX_ROWS + 1) => `${colLetter(idx(h))}${from}:${colLetter(idx(h))}${to}`;
+  const add = (h: string, formula: string, title: string, msg: string, from?: number, to?: number) => {
     if (idx(h) < 0) return;
-    dv.add(colRange(h), { type: "list", formulae: [formula], ...warn(title, msg) });
+    dv.add(colRange(h, from, to), { type: "list", formulae: [formula], ...warn(title, msg) });
   };
-  list("Sàn bán", `"${merchants.join(",")}"`, "Sàn bán", "Chọn shopee, tiktok, lazada hoặc other");
-  list("Phong cách", range("A", styles.length), "Phong cách chưa có", "Phong cách này chưa có trong hệ thống — thêm ở Admin → Phân loại, hoặc chọn từ danh sách");
-  list("Thể loại", range("B", cats.length), "Thể loại chưa có", "Thể loại này chưa có trong hệ thống — thêm ở Admin → Phân loại, hoặc chọn từ danh sách");
-  const catCol = colLetter(idx("Thể loại"));
-  // Loai phu thuoc the loai: neu da chon the loai -> chi liet ke loai cua the loai do, nguoc lai liet ke tat ca
-  if (idx("Loại") >= 0 && idx("Thể loại") >= 0) {
-    const D = range("D", types.length), C = range("C", types.length);
-    // tham chieu tuong doi theo o dau cua vung (dong 2) -> Excel tu dich theo tung dong
-    const f = types.length
-      ? `IFERROR(OFFSET(DanhMuc!$C$2,MATCH(${catCol}2,${D},0)-1,0,COUNTIF(${D},${catCol}2),1),${C})`
-      : C;
-    dv.add(colRange("Loại"), { type: "list", formulae: [f], ...warn("Loại chưa có", "Loại này không thuộc thể loại đã chọn hoặc chưa có — thêm ở Admin → Phân loại") });
+  add("Sàn bán", inline(merchants)!, "Sàn bán", "Chọn shopee, tiktok, lazada hoặc other");
+  add("Phong cách", inline(styles.map((s) => s.name)) ?? "DM_PhongCach", "Phong cách chưa có", "Phong cách này chưa có trong hệ thống — thêm ở Admin → Phân loại, hoặc chọn từ danh sách");
+  add("Thể loại", inline(cats.map((c) => c.name)) ?? "DM_TheLoai", "Thể loại chưa có", "Thể loại này chưa có trong hệ thống — thêm ở Admin → Phân loại, hoặc chọn từ danh sách");
+  // Loai phu thuoc the loai:
+  //  - dong da co the loai (xuat san pham / template Shopee) -> danh sach co dinh cac loai cua dung the loai do (chay ca Google Sheets/Numbers)
+  //  - dong trong -> cong thuc: da chon the loai thi chi liet ke loai cua the loai do, chua chon thi liet ke tat ca
+  const ci = idx("Thể loại");
+  if (idx("Loại") >= 0 && ci >= 0) {
+    const catCol = colLetter(ci);
+    const formulaAt = (r: number) => types.length
+      ? `OFFSET(DanhMuc!$C$2,IF(COUNTIF(DM_LoaiTheLoai,${catCol}${r}),MATCH(${catCol}${r},DM_LoaiTheLoai,0)-1,0),0,IF(COUNTIF(DM_LoaiTheLoai,${catCol}${r}),COUNTIF(DM_LoaiTheLoai,${catCol}${r}),ROWS(DM_Loai)),1)`
+      : "DM_Loai";
+    const byCat = new Map(cats.map((c) => [normalizeName(c.name), inline(types.filter((x) => x.categoryId === c.id).map((x) => x.name))]));
+    const title = "Loại chưa có", msg = "Loại này không thuộc thể loại đã chọn hoặc chưa có — thêm ở Admin → Phân loại";
+    // gom cac dong lien tiep cung danh sach thanh 1 quy tac; "" = dung cong thuc
+    const keyAt = (r: number) => byCat.get(normalizeName(String(rows[r - 2]?.[ci] ?? ""))) ?? "";
+    const last = rows.length + 1; // dong du lieu cuoi cung
+    let start = 2;
+    for (let r = 3; r <= last + 1; r++) {
+      const prev = keyAt(r - 1);
+      if (r <= last && keyAt(r) === prev) continue;
+      if (r > last && !prev) break; // doan cuoi dung cong thuc -> gop voi phan dong trong ben duoi
+      add("Loại", prev || formulaAt(start), title, msg, start, r - 1);
+      start = r;
+    }
+    add("Loại", formulaAt(start), title, msg, start, MAX_ROWS + 1);
   }
-  list("Trạng thái", `"${statuses.join(",")}"`, "Trạng thái", "Chọn published, draft hoặc archived");
-  list("Nổi bật", `"x"`, "Nổi bật", "Chọn x hoặc để trống");
+  add("Trạng thái", inline(statuses)!, "Trạng thái", "Chọn published, draft hoặc archived");
+  add("Nổi bật", `"x"`, "Nổi bật", "Chọn x hoặc để trống");
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: head.length } };
 
   /* ---------- HuongDan ---------- */
@@ -139,6 +169,8 @@ export async function buildProductWorkbook(input: WorkbookInput): Promise<Buffer
     ["Cách dùng", "Điền sheet SanPham (mỗi dòng 1 sản phẩm) → lưu .xlsx → Admin → Nhập dữ liệu → chọn tệp → Kiểm tra thử → Nhập dữ liệu."],
     ["Cột bắt buộc", "Tên sản phẩm và Giá (đầu cột màu đỏ). Cột khác trống thì hệ thống tự đoán hoặc bỏ qua."],
     ["Dropdown", "Phong cách / Thể loại / Loại / Sàn bán / Trạng thái / Nổi bật chọn từ danh sách lấy từ hệ thống (sheet DanhMuc). Muốn thêm giá trị mới: Admin → Phân loại, rồi tải lại template."],
+    ["Đổi Thể loại của dòng đã xuất?", "Dòng đã có Thể loại lúc xuất thì cột Loại liệt kê sẵn các loại của thể loại đó. Nếu đổi sang thể loại khác, gõ tên loại mới (Excel chỉ cảnh báo, vẫn nhập được) hoặc xoá trắng để hệ thống tự đoán."],
+    ["Không thấy mũi tên dropdown?", "Excel mở tệp tải từ Internet ở chế độ Protected View (thanh vàng phía trên) — bấm “Enable Editing / Bật chỉnh sửa” thì dropdown mới hiện. Bấm vào ô (vd cột Thể loại) để thấy mũi tên ▾ bên phải ô."],
     ["Trùng sản phẩm", "Cùng (Sàn bán + Mã sản phẩm) hoặc cùng Slug → cập nhật sản phẩm cũ, không tạo trùng."],
     ["Không đổi tên cột", "Giữ nguyên hàng tiêu đề (dòng 1) và thứ tự cột để nhập không lỗi."],
     ...(dropped ? [["Lưu ý", `${dropped} ô JSON quá dài (>32.000 ký tự) đã bị bỏ khỏi Excel. Dùng “Xuất JSON” nếu cần sao lưu đầy đủ.`]] : []),
